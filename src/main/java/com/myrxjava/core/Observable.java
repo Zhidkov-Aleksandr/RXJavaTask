@@ -1,8 +1,6 @@
 package com.myrxjava.core;
 
-import com.myrxjava.core.operators.FilterOperator;
-import com.myrxjava.core.operators.FlatMapOperator;
-import com.myrxjava.core.operators.MapOperator;
+import com.myrxjava.core.operators.*;
 import com.myrxjava.functions.*;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -21,7 +19,6 @@ public class Observable<T> {
         return new Observable<>(source);
     }
 
-    // Основные методы подписки
     public void subscribe(Observer<? super T> observer) {
         source.subscribe(observer);
     }
@@ -29,8 +26,7 @@ public class Observable<T> {
     public void subscribe(
             Consumer<? super T> onNext,
             Consumer<? super Throwable> onError,
-            Action onComplete
-    ) {
+            Action onComplete) {
         subscribe(new Observer<T>() {
             private final AtomicReference<Disposable> disposableRef = new AtomicReference<>();
 
@@ -44,7 +40,7 @@ public class Observable<T> {
                 try {
                     onNext.accept(item);
                 } catch (Exception e) {
-                    handleError(e);
+                    onError(e);
                 }
             }
 
@@ -53,10 +49,9 @@ public class Observable<T> {
                 try {
                     onError.accept(t);
                 } catch (Exception e) {
-                    // Логирование ошибки обработчика
-                } finally {
-                    disposeIfNeeded();
+                    // Handle error
                 }
+                disposeIfNeeded();
             }
 
             @Override
@@ -64,17 +59,7 @@ public class Observable<T> {
                 try {
                     onComplete.run();
                 } catch (Exception e) {
-                    handleError(e);
-                } finally {
-                    disposeIfNeeded();
-                }
-            }
-
-            private void handleError(Exception e) {
-                try {
-                    onError.accept(e);
-                } catch (Exception ex) {
-                    // Логирование вторичной ошибки
+                    onError(e);
                 }
                 disposeIfNeeded();
             }
@@ -88,7 +73,6 @@ public class Observable<T> {
         });
     }
 
-    // Операторы преобразования
     public <R> Observable<R> map(Function<? super T, ? extends R> mapper) {
         return new Observable<>(new MapOperator<>(this, mapper));
     }
@@ -101,7 +85,6 @@ public class Observable<T> {
         return new Observable<>(new FlatMapOperator<>(this, mapper));
     }
 
-    // Управление потоками
     public Observable<T> subscribeOn(Scheduler scheduler) {
         return new Observable<>(observer ->
                 scheduler.execute(() -> source.subscribe(observer))
