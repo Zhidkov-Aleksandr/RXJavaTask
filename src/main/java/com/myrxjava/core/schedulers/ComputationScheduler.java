@@ -1,15 +1,20 @@
 package com.myrxjava.core.schedulers;
 
 import com.myrxjava.core.Scheduler;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-public class ComputationScheduler implements Scheduler {
-    private static final int THREAD_COUNT = Runtime.getRuntime().availableProcessors();
-    private final ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
-    @Override
-    public void execute(Runnable task) {
-        executor.execute(task);
-    }
+public final class ComputationScheduler implements Scheduler {
+
+    private static final int SIZE = Runtime.getRuntime().availableProcessors();
+    private static final AtomicInteger IDX = new AtomicInteger();
+
+    private final ExecutorService pool = Executors.newFixedThreadPool(
+            SIZE, r -> new Thread(r, "ComputationThread-" + IDX.incrementAndGet())
+    );
+
+    @Override public void execute(Runnable task) { pool.execute(task); }
+
+    public void shutdown() { pool.shutdownNow(); }
 }
